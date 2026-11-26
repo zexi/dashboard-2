@@ -45,7 +45,7 @@ export default {
         model_tag: undefined,
       },
       rules: {
-        name: [{ required: true, validator: this.$validate('resourceName') }],
+        name: [{ required: true, validator: this.$validate('llmResourceName') }],
         llm_type: [{ required: true, message: this.$t('common.tips.select', [this.$t('aice.llm_type')]) }],
         model_name: [{ required: true, message: this.$t('common.tips.input', [this.$t('aice.model_name')]) }],
         model_tag: [{ required: true, message: this.$t('common.tips.input', [this.$t('aice.model_tag')]) }],

@@ -53,6 +53,24 @@ export function buildChatCompletionsUrl (baseUrl) {
   return `${openaiBase}/chat/completions`
 }
 
+export function buildEmbeddingsUrl (baseUrl) {
+  const openaiBase = buildOpenAIBaseUrl(baseUrl)
+  if (!openaiBase) return ''
+  return `${openaiBase}/embeddings`
+}
+
+export function buildRerankUrl (baseUrl) {
+  const openaiBase = buildOpenAIBaseUrl(baseUrl)
+  if (!openaiBase) return ''
+  return `${openaiBase}/rerank`
+}
+
+export function buildModelsUrl (baseUrl) {
+  const openaiBase = buildOpenAIBaseUrl(baseUrl)
+  if (!openaiBase) return ''
+  return `${openaiBase}/models`
+}
+
 export function buildAnthropicBaseUrl (baseUrl) {
   const base = normalizeBaseUrl(baseUrl)
   if (!base) return ''
@@ -276,6 +294,47 @@ export function buildChatTestRequestConfig ({ endpoint, model, virtualKey } = {}
     model: m,
     protocol: 'openai',
   }
+}
+
+function jsonBody (payload) {
+  return JSON.stringify(payload)
+}
+
+/** curl for POST /embeddings. */
+export function buildEmbeddingsCurlExample ({ endpoint, model, virtualKey = '<API Key>', input } = {}) {
+  const url = endpoint || '<endpoint>/ai/openai/v1/embeddings'
+  const m = model || 'your-model'
+  const key = virtualKey || '<API Key>'
+  const texts = Array.isArray(input) && input.length ? input : ['hello world']
+  return [
+    `curl -X POST '${url}' \\`,
+    `  -H 'Authorization: Bearer ${key}' \\`,
+    '  -H \'Content-Type: application/json\' \\',
+    `  -d '${jsonBody({ model: m, input: texts })}'`,
+  ].join('\n')
+}
+
+/** curl for POST /rerank. */
+export function buildRerankCurlExample ({
+  endpoint,
+  model,
+  virtualKey = '<API Key>',
+  query = 'hello',
+  documents,
+  topN,
+} = {}) {
+  const url = endpoint || '<endpoint>/ai/openai/v1/rerank'
+  const m = model || 'your-model'
+  const key = virtualKey || '<API Key>'
+  const docs = Array.isArray(documents) && documents.length ? documents : ['hello', 'world']
+  const payload = { model: m, query, documents: docs }
+  if (topN > 0) payload.top_n = topN
+  return [
+    `curl -X POST '${url}' \\`,
+    `  -H 'Authorization: Bearer ${key}' \\`,
+    '  -H \'Content-Type: application/json\' \\',
+    `  -d '${jsonBody(payload)}'`,
+  ].join('\n')
 }
 
 async function fetchServiceApiServer (vm) {

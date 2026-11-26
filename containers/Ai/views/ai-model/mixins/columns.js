@@ -5,6 +5,26 @@ import {
   getTimeTableColumn,
 } from '@/utils/common/tableColumn'
 import { getAiProviderLinkColumn } from '@Ai/utils/aiproxyLlmLinkColumns'
+import { aiModelCategoryI18nKey, aiModelCategoryTagColor, normalizeAiModelCategory } from '@Ai/constants/aiModelCategory'
+
+export const getAiModelCategoryTableColumn = (vm) => ({
+  field: 'category',
+  title: vm.$t('aice.aiproxy.category'),
+  minWidth: 110,
+  formatter: ({ row }) => {
+    const category = normalizeAiModelCategory(row.config?.category) || normalizeAiModelCategory(row.category)
+    return category || '-'
+  },
+  slots: {
+    default: ({ row }) => {
+      const category = normalizeAiModelCategory(row.config?.category) || normalizeAiModelCategory(row.category)
+      if (!category) return '-'
+      return [vm.$createElement('a-tag', {
+        props: { color: aiModelCategoryTagColor(category) },
+      }, [vm.$t(aiModelCategoryI18nKey(category))])]
+    },
+  },
+})
 
 export default {
   created () {
@@ -19,6 +39,7 @@ export default {
       getEnabledTableColumn(),
       getAiProviderLinkColumn(this),
       { field: 'model_key', title: this.$t('aice.aiproxy.model_key'), minWidth: 140 },
+      getAiModelCategoryTableColumn(this),
       {
         field: 'context_window',
         title: this.$t('aice.aiproxy.context_window'),

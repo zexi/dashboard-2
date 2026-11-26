@@ -8,7 +8,7 @@
         :wrapper-col="{ span: 16 }"
         class="mt-4">
         <a-form-item :label="$t('common.name')">
-          <a-input v-decorator="decorators.name" :placeholder="$t('validator.resourceName')" />
+          <a-input v-decorator="decorators.name" :placeholder="$t('validator.llmResourceName')" />
           <template v-slot:extra>
             <name-repeated res="llm_deployments" :name="form.fd.name" />
           </template>
@@ -172,7 +172,7 @@ export default {
           validateFirst: true,
           rules: [
             { required: true, message: this.$t('common.tips.input', [this.$t('common.name')]) },
-            { validator: this.$validate('resourceName') },
+            { validator: this.$validate('llmResourceName') },
           ],
         }],
         llm_sku_id: ['llm_sku_id', {

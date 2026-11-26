@@ -1376,6 +1376,7 @@
     "llmDeployment": {
       "unknown": "Unknown",
       "ready": "Ready",
+      "stopped": "Stopped",
       "running": "Running",
       "creating": "Creating",
       "importing_model": "Importing Model",
@@ -1578,6 +1579,7 @@
     "domains6": "Please enter multiple legal IPv6 domain names, separated by ,",
     "url": "Please enter a valid URL",
     "resourceName": "2-128 characters, contains letters, digits, hyphens ‘-’, start with a letter and can't end with ‘-’.",
+    "llmResourceName": "2-128 characters, letters, digits, hyphens ‘-’ and dots ‘.’; start with a letter; cannot end with ‘-’ or ‘.’; no consecutive dots.",
     "secgroupNetworkTag": "Start with a lowercase letter, 1-63 characters, may contain lowercase letters, digits and '-', cannot end with '-'",
     "password": "At least 8 characters, must have at least one of uppercase and lowercase letters and digits",
     "publicKey": "Invalid public key, only supports RSA/ED25519/ECDSA type public key",

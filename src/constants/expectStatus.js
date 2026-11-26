@@ -685,7 +685,7 @@ export default {
     info: ['unknown', 'importing_model'],
   },
   llmDeployment: {
-    info: ['unknown', 'deleted'],
+    info: ['unknown', 'deleted', 'stopped'],
     success: ['ready'],
     danger: ['create_fail', 'create_failed', 'import_model_failed', 'create_sku_failed', 'delete_fail', 'delete_failed', 'start_fail'],
   },

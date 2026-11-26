@@ -71,7 +71,7 @@ export default {
     listId () {
       switch (this.params.windowData.currentTab) {
         case 'event-drawer':
-          return 'EventListForDesktopSidePage'
+          return 'EventListForLlmSkuSidePage'
         default:
           return ''
       }

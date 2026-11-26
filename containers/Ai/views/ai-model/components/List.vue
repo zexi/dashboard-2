@@ -8,6 +8,7 @@ import ListMixin from '@/mixins/list'
 import AiproxyLlmLinkListMixin from '@Ai/mixins/aiproxyLlmLinkListMixin'
 import { getAiproxyResourceScope } from '@Ai/constants/aiproxyResources'
 import { getAiproxyBatchEnabledActions } from '@Ai/utils/aiproxyEnabledActions'
+import { aiModelCategoryOptions, normalizeAiModelCategory } from '@Ai/constants/aiModelCategory'
 import SingleActionsMixin from '../mixins/singleActions'
 import ColumnsMixin from '../mixins/columns'
 
@@ -25,6 +26,15 @@ export default {
           name: { label: this.$t('common.name'), filter: true, formatter: val => `name.contains(${val})` },
           model_key: { label: this.$t('aice.aiproxy.model_key'), filter: true, formatter: val => `model_key.contains(${val})` },
           ai_provider_id: { label: this.$t('aice.aiproxy.ai_provider_id'), filter: true, formatter: val => `ai_provider_id.in(${val})` },
+          // config.category is not a searchable column, so it must stay out of
+          // the `filter` array (backend drops filters on non-column fields) and
+          // be sent as a plain query param handled by AiModelListInput.Category.
+          category: {
+            label: this.$t('aice.aiproxy.category'),
+            dropdown: true,
+            items: aiModelCategoryOptions(k => this.$t(k)).map(opt => ({ key: opt.value, label: opt.label })),
+            formatter: val => normalizeAiModelCategory(val),
+          },
         },
       }),
       groupActions: [

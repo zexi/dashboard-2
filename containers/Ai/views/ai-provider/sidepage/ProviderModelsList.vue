@@ -23,6 +23,7 @@ import {
   shouldShowAiModelVisualColumn,
 } from '@Ai/utils/aiModelVisual'
 import AiproxyLlmLinkListMixin from '@Ai/mixins/aiproxyLlmLinkListMixin'
+import { getAiModelCategoryTableColumn } from '@Ai/views/ai-model/mixins/columns'
 import SingleActionsMixin from '../../ai-model/mixins/singleActions'
 
 export default {
@@ -91,6 +92,7 @@ export default {
         }),
         getEnabledTableColumn(),
         { field: 'model_key', title: this.$t('aice.aiproxy.model_key'), minWidth: 140 },
+        getAiModelCategoryTableColumn(this),
         {
           field: 'context_window',
           title: this.$t('aice.aiproxy.context_window'),

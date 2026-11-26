@@ -165,6 +165,7 @@
 import VueMarkdown from 'vue-markdown'
 import WindowsMixin from '@/mixins/windows'
 import { Manager } from '@/utils/manager'
+import { resolveModelCategoryFromList } from '@Ai/constants/aiModelCategory'
 import { getAiproxyVirtualKeySelectParams } from '@Ai/constants/aiproxyResources'
 import {
   buildAnthropicChatTestRequestConfig,
@@ -182,7 +183,9 @@ import { extractUpstreamErrorMessage, splitThinkingContent, normalizeMarkdownTab
 import {
   buildDeploymentClientModelOptions,
   defaultClientModelOption,
+  fetchCategoryMapsForBindings,
   fetchRoutingClientModelOptions,
+  filterClientModelOptionsByCategory,
   mergeClientModelOptions,
 } from '@Ai/utils/aiproxyClientModelId'
 
@@ -767,7 +770,12 @@ export default {
         const bindings = Array.isArray(this.data?.aiproxy_bindings) ? this.data.aiproxy_bindings : []
         let options = []
         if (bindings.length) {
-          const deploymentOptions = buildDeploymentClientModelOptions(this.getChatTestReadyBindings())
+          const readyBindings = this.getChatTestReadyBindings()
+          const { byModelKey, byProvider } = await fetchCategoryMapsForBindings(readyBindings, this)
+          const deploymentOptions = buildDeploymentClientModelOptions(readyBindings, byModelKey, {
+            categoryByProvider: byProvider,
+            fallbackCategory: resolveModelCategoryFromList(this.data?.categories),
+          })
           const routingId = String(this.data?.aiproxy_routing_id || '').trim()
           let routingOptions = []
           if (routingId) {
@@ -780,11 +788,25 @@ export default {
           const result = await fetchRoutingClientModelOptions(routingId, this.data, this)
           options = result.options || []
         }
-        this.chatModelOptions = options
+        // Chat test only lists chat-capable models; embedding/reranker rows are
+        // rejected by the backend on /chat/completions.
+        const chatOptions = filterClientModelOptionsByCategory(options, 'chat')
+        if (chatOptions.length) {
+          this.chatModelOptions = chatOptions
+        } else {
+          // Legacy deployments where every row has no category: keep the list so
+          // the chat test does not become unusable.
+          this.chatModelOptions = options
+        }
         this.applyChatTestModelSelection()
       } catch (e) {
-        const fallback = buildDeploymentClientModelOptions(this.getChatTestReadyBindings())
-        this.chatModelOptions = fallback
+        const fallback = buildDeploymentClientModelOptions(this.getChatTestReadyBindings(), {}, {
+          fallbackCategory: resolveModelCategoryFromList(this.data?.categories),
+        })
+        this.chatModelOptions = filterClientModelOptionsByCategory(fallback, 'chat')
+        if (!this.chatModelOptions.length) {
+          this.chatModelOptions = fallback
+        }
         this.applyChatTestModelSelection(true)
       } finally {
         this.chatModelsLoading = false

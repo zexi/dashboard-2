@@ -11,7 +11,7 @@
     <a-form-model-item :label="$t('common.name')" prop="name">
       <a-input
         v-model="deployForm.name"
-        :placeholder="$t('validator.resourceName')" />
+        :placeholder="$t('validator.llmResourceName')" />
       <template v-slot:extra>
         <name-repeated res="llm_deployments" :name="deployForm.name" />
       </template>
@@ -77,7 +77,7 @@ export default {
       return {
         name: [
           { required: true, message: this.$t('common.tips.input', [this.$t('common.name')]) },
-          { validator: this.$validate('resourceName') },
+          { validator: this.$validate('llmResourceName') },
         ],
         llm_image_id: [{ required: true, message: this.$t('common.tips.select', [this.$t('aice.llm_image')]) }],
         network: [{ required: true, message: this.$t('common.tips.select', [this.$t('compute.text_104')]) }],

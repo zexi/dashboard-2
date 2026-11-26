@@ -5,6 +5,12 @@
 import { Manager } from '@/utils/manager'
 import { getAiproxyResourceScope } from '@Ai/constants/aiproxyResources'
 import { fetchRoutingModelsForRouting } from '@Ai/utils/aiProviderKind'
+import {
+  isChatCategory,
+  isEmbeddingCategory,
+  isRerankCategory,
+  normalizeAiModelCategory,
+} from '../constants/aiModelCategory'
 
 export const CLAUDE_CODE_ENV_MODEL_FIELDS = [
   { key: 'model', labelKey: 'aice.aiproxy.claude_env.ANTHROPIC_MODEL', envVar: 'ANTHROPIC_MODEL' },
@@ -59,6 +65,10 @@ function catalogContextWindow (catalog) {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+function catalogCategory (catalog) {
+  return normalizeAiModelCategory(catalog?.config?.category)
+}
+
 function uniqueClientFacingParts (routing, entries, catalogModelsById) {
   const parts = new Set()
   for (const entry of entries) {
@@ -109,6 +119,7 @@ export function buildRoutingClientModelOptions ({
     const catalog = catalogModelsById[entry.ai_model_id] || {}
     const catalogKey = trim(catalog.model_key)
     const contextWindow = catalogContextWindow(catalog)
+    const category = catalogCategory(catalog)
     if (routeKey && multiCatalog) {
       const hierarchical = hierarchicalClientModelId(routing, entry, catalog)
       if (hierarchical) {
@@ -117,6 +128,7 @@ export function buildRoutingClientModelOptions ({
           kind: 'hierarchical',
           catalogKey,
           contextWindow,
+          category,
           priority: entry.priority || 0,
         })
       }
@@ -128,6 +140,7 @@ export function buildRoutingClientModelOptions ({
         kind: 'flat',
         catalogKey,
         contextWindow,
+        category,
         priority: entry.priority || 0,
       })
       continue
@@ -139,6 +152,7 @@ export function buildRoutingClientModelOptions ({
         kind: 'flat',
         catalogKey,
         contextWindow,
+        category,
         priority: entry.priority || 0,
       })
     }
@@ -171,23 +185,52 @@ export function mergeClientModelOptions (...optionLists) {
 
 /**
  * Flat client model ids from LLM deployment aiproxy_bindings.
+ *
+ * Bindings only carry ai_provider_id (there is no model_key field), so the
+ * category is resolved by provider first: every ai_model of one provider is
+ * registered from the same deployment and shares its SKU categories.
+ * `fallbackCategory` covers deployments whose ai_model rows predate category
+ * registration — the deployment details still expose the SKU categories.
  */
-export function buildDeploymentClientModelOptions (instances = []) {
+export function buildDeploymentClientModelOptions (instances = [], categoryByModelKey = {}, options = {}) {
+  const { categoryByProvider = {}, fallbackCategory = '' } = options || {}
+  const fallback = normalizeAiModelCategory(fallbackCategory)
   const seen = new Set()
-  const options = []
+  const out = []
   for (const item of instances || []) {
     const id = trim(item?.client_model_alias)
     if (!id || seen.has(id)) continue
     seen.add(id)
-    options.push({
+    const catalogKey = trim(item?.model_key) || id
+    const providerId = trim(item?.ai_provider_id)
+    out.push({
       id,
       kind: 'flat',
-      catalogKey: id,
+      catalogKey,
       contextWindow: 0,
+      category: normalizeAiModelCategory(
+        categoryByModelKey[catalogKey] || categoryByProvider[providerId] || fallback,
+      ),
       priority: 0,
     })
   }
-  return options
+  return out
+}
+
+/**
+ * Filter client model options for one playground kind.
+ * kind: 'chat' | 'embedding' | 'rerank'
+ * Unknown (legacy, empty) categories only stay selectable for chat.
+ */
+export function filterClientModelOptionsByCategory (options = [], kind = 'chat') {
+  const list = (options || []).filter(Boolean)
+  if (kind === 'embedding') {
+    return list.filter(o => isEmbeddingCategory(o.category))
+  }
+  if (kind === 'rerank') {
+    return list.filter(o => isRerankCategory(o.category))
+  }
+  return list.filter(o => isChatCategory(o.category))
 }
 
 async function fetchCatalogModelsById (modelIds, vm) {
@@ -199,7 +242,7 @@ async function fetchCatalogModelsById (modelIds, vm) {
     try {
       const { data } = await manager.get({
         id,
-        params: { scope: getAiproxyResourceScope('ai_models', vm) },
+        params: { scope: getAiproxyResourceScope('ai_models', vm), details: true },
       })
       if (data?.id) {
         out[data.id] = data
@@ -209,6 +252,52 @@ async function fetchCatalogModelsById (modelIds, vm) {
     }
   }))
   return out
+}
+
+/**
+ * Resolve ai_model config.category for deployment bindings.
+ *
+ * Bindings have no model_key, so categories are indexed by ai_provider_id
+ * (one provider per replica, all its models registered from this deployment).
+ * The model_key map is kept for callers that already hold one.
+ * Per-provider queries avoid relying on an unsupported `ai_provider_id.in`
+ * filter. Failures degrade to empty maps (no filtering).
+ * @returns {Promise<{ byModelKey: Object, byProvider: Object }>}
+ */
+export async function fetchCategoryMapsForBindings (bindings = [], vm) {
+  const byModelKey = {}
+  const byProvider = {}
+  const providerIds = [...new Set((bindings || []).map(b => trim(b?.ai_provider_id)).filter(Boolean))]
+  if (!providerIds.length) return { byModelKey, byProvider }
+  const manager = new Manager('ai_models')
+  const scope = getAiproxyResourceScope('ai_models', vm)
+  await Promise.all(providerIds.map(async (providerId) => {
+    try {
+      const { data: { data = [] } } = await manager.list({
+        params: {
+          scope,
+          details: true,
+          limit: 500,
+          ai_provider_id: providerId,
+        },
+      })
+      for (const item of data || []) {
+        const category = normalizeAiModelCategory(item?.config?.category)
+        const key = trim(item?.model_key)
+        if (key) byModelKey[key] = category
+        if (category && !byProvider[providerId]) byProvider[providerId] = category
+      }
+    } catch (e) {
+      // ignore: the provider's category stays unknown
+    }
+  }))
+  return { byModelKey, byProvider }
+}
+
+/** Backward-compatible wrapper returning only the model_key → category map. */
+export async function fetchCategoryByModelKeyForBindings (bindings = [], vm) {
+  const { byModelKey } = await fetchCategoryMapsForBindings(bindings, vm)
+  return byModelKey
 }
 
 /**

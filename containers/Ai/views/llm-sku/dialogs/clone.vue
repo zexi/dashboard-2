@@ -55,6 +55,8 @@ export default {
             initialValue: source.name ? `${source.name}-copy` : '',
             rules: [
               { required: true, message: this.$t('common.tips.input', [this.$t('common.name')]) },
+              // Cloned names inherit dots from the source model name.
+              { validator: this.$validate('llmResourceName') },
             ],
           },
         ],

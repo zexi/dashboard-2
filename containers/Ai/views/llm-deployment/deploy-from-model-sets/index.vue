@@ -37,7 +37,7 @@
                   <a-tag v-if="spec.backend">{{ spec.backend }}</a-tag>
                   <a-tag v-if="spec.mode">{{ spec.mode }}</a-tag>
                   <a-tag v-if="spec.quantization">{{ spec.quantization }}</a-tag>
-                  <a-tag v-if="spec.source" color="cyan">{{ spec.source }}</a-tag>
+                  <a-tag v-if="spec.source" color="cyan">{{ sourceLabel(spec.source) }}</a-tag>
                 </div>
                 <div class="spec-row-source">{{ specSourceText(spec) }}</div>
                 <div v-if="(spec.backend_parameters || []).length > 0" class="spec-row-params">
@@ -87,6 +87,7 @@ import {
   isCatalogInferenceBackend,
   resolveCatalogLlmType,
 } from '@Ai/utils/catalogSpec'
+import { getLlmSkuSourceLabel } from '@Ai/views/llm-sku/utils/skuSourceDisplay'
 
 export default {
   name: 'LlmDeploymentDeployFromModelSets',
@@ -136,6 +137,7 @@ export default {
   },
   methods: {
     getCatalogSpecId,
+    sourceLabel: getLlmSkuSourceLabel,
     specTitle (spec) {
       if (!spec) return ''
       if (spec.name || spec.label) return spec.name || spec.label
@@ -186,7 +188,7 @@ export default {
       }
       this.submitLoading = true
       try {
-        const payload = buildCatalogDeploymentPayload(this.deployForm, spec, this.deployLlmType, this.podPciModels)
+        const payload = buildCatalogDeploymentPayload(this.deployForm, spec, this.deployLlmType, this.podPciModels, this.set)
         await this.deploymentsManager.create({ data: payload })
         this.$message.success(this.$t('common.success'))
         this.clearSet()

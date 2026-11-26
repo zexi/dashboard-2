@@ -1402,6 +1402,7 @@
     "llmDeployment": {
       "unknown": "Desconocido",
       "ready": "Normal",
+      "stopped": "Detenido",
       "running": "En ejecución",
       "creating": "Creando",
       "importing_model": "Importando modelo",
@@ -1624,6 +1625,7 @@
     "domains6": "Introduce varios nombres de dominio IPv6 válidos, separados por ,",
     "url": "Introduce una URL válida",
     "resourceName": "De 2 a 128 caracteres: letras, dígitos y guiones ‘-’; debe empezar por una letra y no puede terminar en ‘-’.",
+    "llmResourceName": "De 2 a 128 caracteres: letras, dígitos, guiones ‘-’ y puntos ‘.’; debe empezar por una letra; no puede terminar en ‘-’ o ‘.’; sin puntos consecutivos.",
     "secgroupNetworkTag": "Debe empezar por una letra minúscula; de 1 a 63 caracteres; puede contener letras minúsculas, dígitos y '-', y no puede terminar en '-'",
     "password": "Al menos 8 caracteres; debe incluir letras mayúsculas y minúsculas y dígitos",
     "publicKey": "Clave pública no válida; solo se admiten claves públicas RSA/ED25519/ECDSA",

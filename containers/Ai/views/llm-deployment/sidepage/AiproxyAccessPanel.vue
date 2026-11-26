@@ -104,6 +104,13 @@
             @click="handleQuickChatTest">
             {{ $t('aice.llm_deployment.chat_test_quick') }}
           </a-button>
+          <a-button
+            type="link"
+            size="small"
+            class="flex-shrink-0"
+            @click="openPlayground">
+            {{ $t('aice.aiproxy.playground.open') }}
+          </a-button>
         </div>
       </div>
       <div v-if="showModelSelect" class="mb-3">
@@ -134,6 +141,7 @@
         :virtual-key-ref="selectedVirtualKeyRef"
         :model="agentAccessModel"
         :client-model-options="clientModelOptions"
+        :category="selectedModelCategory"
         :routing="routingDetail"
         :routing-ref="routingDetail.name || routingDetail.id || data.aiproxy_routing_id" />
     </template>
@@ -144,12 +152,14 @@
 
 <script>
 import WindowsMixin from '@/mixins/windows'
+import { resolveModelCategoryFromList } from '@Ai/constants/aiModelCategory'
 import AiproxyLlmLinkListMixin from '@Ai/mixins/aiproxyLlmLinkListMixin'
 import AiproxyVirtualKeySelectMixin from '@Ai/mixins/aiproxyVirtualKeySelectMixin'
 import AiproxyClientAccessDetail from '@Ai/sections/AiproxyClientAccessDetail'
 import {
   buildDeploymentClientModelOptions,
   defaultClientModelOption,
+  fetchCategoryMapsForBindings,
   fetchRoutingClientModelOptions,
   mergeClientModelOptions,
 } from '@Ai/utils/aiproxyClientModelId'
@@ -286,6 +296,11 @@ export default {
       if (fromOptions) return fromOptions
       return this.readyInstances[0]?.client_model_alias || ''
     },
+    /** Category of the selected client model, used to pick the right endpoint/sample. */
+    selectedModelCategory () {
+      const selected = this.clientModelOptions.find(opt => opt.id === this.agentAccessModel)
+      return selected?.category || ''
+    },
   },
   watch: {
     'data.status' () {
@@ -396,7 +411,12 @@ export default {
         return
       }
       try {
-        const deploymentOptions = buildDeploymentClientModelOptions(this.readyInstances)
+        const { byModelKey, byProvider } = await fetchCategoryMapsForBindings(this.readyInstances, this)
+        const fallbackCategory = resolveModelCategoryFromList(this.data?.categories)
+        const deploymentOptions = buildDeploymentClientModelOptions(this.readyInstances, byModelKey, {
+          categoryByProvider: byProvider,
+          fallbackCategory,
+        })
         const routingId = String(this.data?.aiproxy_routing_id || '').trim()
         let routingOptions = []
         let routingDetail = {}
@@ -409,7 +429,9 @@ export default {
         this.routingDetail = routingDetail
         this.selectedClientModelId = defaultClientModelOption(this.clientModelOptions)
       } catch (e) {
-        this.clientModelOptions = buildDeploymentClientModelOptions(this.readyInstances)
+        this.clientModelOptions = buildDeploymentClientModelOptions(this.readyInstances, {}, {
+          fallbackCategory: resolveModelCategoryFromList(this.data?.categories),
+        })
         this.routingDetail = {}
         this.selectedClientModelId = defaultClientModelOption(this.clientModelOptions)
       }
@@ -489,6 +511,19 @@ export default {
         clearInterval(this.pollTimer)
         this.pollTimer = null
       }
+    },
+    openPlayground () {
+      const cat = String(this.selectedModelCategory || '').trim().toLowerCase()
+      const tab = cat === 'embedding' ? 'embedding' : (cat === 'reranker' ? 'rerank' : 'chat')
+      this.$router.push({
+        name: 'AiPlayground',
+        query: {
+          tab,
+          deployment: this.data.id,
+          vk: this.selectedVirtualKeyId || undefined,
+          model: this.agentAccessModel || undefined,
+        },
+      })
     },
     handleQuickChatTest () {
       this.$bus.$emit('llmDeploymentOpenChatTest', {

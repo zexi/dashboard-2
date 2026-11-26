@@ -1,4 +1,5 @@
 import i18n from '@/locales'
+import { aiModelCategoryTagColor } from '@Ai/constants/aiModelCategory'
 import { getParallelModeShortLabel, formatTopologySummary } from './topology'
 
 export const getReplicasTableColumn = () => ({
@@ -16,6 +17,35 @@ export const getBackendTableColumn = () => ({
   field: 'backend',
   title: i18n.t('aice.llm_deployment.backend'),
   width: 100,
+})
+
+/** Category value → aice.llm_catalog.category.* suffix. */
+export function categoryI18nSuffix (value) {
+  const v = String(value || '').trim().toLowerCase()
+  if (v === 'speech_to_text') return 'stt'
+  if (v === 'text_to_speech') return 'tts'
+  return v
+}
+
+/** Categories come from the deployment's SKU; list details already include them. */
+export const getDeploymentCategoriesTableColumn = () => ({
+  field: 'categories',
+  title: i18n.t('aice.llm_sku.categories'),
+  minWidth: 140,
+  formatter: ({ row }) => (Array.isArray(row.categories) && row.categories.length
+    ? row.categories.join(', ')
+    : '-'),
+  slots: {
+    default: ({ row }, h) => {
+      const cats = Array.isArray(row.categories) ? row.categories : []
+      if (!cats.length) return '-'
+      return cats.map((cat, idx) => h('a-tag', {
+        key: idx,
+        class: 'mr-1',
+        props: { color: aiModelCategoryTagColor(cat) },
+      }, i18n.t(`aice.llm_catalog.category.${categoryI18nSuffix(cat)}`)))
+    },
+  },
 })
 
 export const getLLMSkuTableColumn = ({ vm } = {}) => {

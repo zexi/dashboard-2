@@ -1,4 +1,4 @@
-import { getRestartMeta, getScaleMeta, getSyncStatusMeta } from '@Ai/utils/aiproxyDeploymentActions'
+import { getRestartMeta, getScaleMeta, getStartMeta, getStopMeta, getSyncStatusMeta } from '@Ai/utils/aiproxyDeploymentActions'
 import expectStatus from '@/constants/expectStatus'
 
 export default {
@@ -26,22 +26,48 @@ export default {
         meta: obj => getSyncStatusMeta(obj, this),
       },
       {
-        label: this.$t('aice.llm_deployment.restart'),
-        permission: 'llm_deployments_perform_restart',
-        action: obj => {
-          this.createDialog('LlmDeploymentRestartDialog', {
-            vm: this,
-            data: [obj],
-            columns: this.columns,
-            onManager: this.onManager,
-          })
-        },
-        meta: obj => getRestartMeta(obj, this),
-      },
-      {
-        label: this.$t('common.more'),
+        label: this.$t('compute.text_352'),
         actions: obj => {
           return [
+            {
+              label: this.$t('aice.llm_deployment.start'),
+              permission: 'llm_deployments_perform_start',
+              action: () => {
+                this.createDialog('LlmDeploymentStartDialog', {
+                  vm: this,
+                  data: [obj],
+                  columns: this.columns,
+                  onManager: this.onManager,
+                })
+              },
+              meta: () => getStartMeta(obj, this),
+            },
+            {
+              label: this.$t('aice.llm_deployment.stop'),
+              permission: 'llm_deployments_perform_stop',
+              action: () => {
+                this.createDialog('LlmDeploymentStopDialog', {
+                  vm: this,
+                  data: [obj],
+                  columns: this.columns,
+                  onManager: this.onManager,
+                })
+              },
+              meta: () => getStopMeta(obj, this),
+            },
+            {
+              label: this.$t('aice.llm_deployment.restart'),
+              permission: 'llm_deployments_perform_restart',
+              action: () => {
+                this.createDialog('LlmDeploymentRestartDialog', {
+                  vm: this,
+                  data: [obj],
+                  columns: this.columns,
+                  onManager: this.onManager,
+                })
+              },
+              meta: () => getRestartMeta(obj, this),
+            },
             {
               label: this.$t('aice.llm_deployment.scale'),
               permission: 'llm_deployments_update',

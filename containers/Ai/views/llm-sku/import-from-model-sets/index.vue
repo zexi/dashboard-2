@@ -37,7 +37,7 @@
                 <div class="spec-row-meta">
                   <a-tag v-if="spec.backend">{{ spec.backend }}</a-tag>
                   <a-tag v-if="spec.quantization">{{ spec.quantization }}</a-tag>
-                  <a-tag v-if="spec.source" color="cyan">{{ spec.source }}</a-tag>
+                  <a-tag v-if="spec.source" color="cyan">{{ sourceLabel(spec.source) }}</a-tag>
                 </div>
               </div>
             </a-radio>
@@ -54,7 +54,8 @@
             :catalog-set="set"
             :catalog-spec="selectedSpec"
             @success="onImportSuccess"
-            @cancel="clearSet" />
+            @cancel="clearSet"
+            @catalog-resolved="onCatalogResolved" />
 
           <a-alert
             v-else-if="selectedSpecId && !catalogLlmType"
@@ -85,6 +86,7 @@ import {
   isCatalogInferenceBackend,
 } from '@Ai/utils/catalogSpec'
 import { parseLlmRoute } from '@Ai/utils/llmRouteContext'
+import { getLlmSkuSourceLabel } from '@Ai/views/llm-sku/utils/skuSourceDisplay'
 
 export default {
   name: 'LlmSkuImportFromModelSets',
@@ -125,6 +127,7 @@ export default {
   },
   methods: {
     getCatalogSpecId,
+    sourceLabel: getLlmSkuSourceLabel,
     onSetSelect (set) {
       this.$store.dispatch('auth/getCapabilities').catch(() => {})
       this.set = set
@@ -149,6 +152,11 @@ export default {
     onImportSuccess () {
       this.clearSet()
       this.$router.push(this.llmRouteCtx.skuListPath)
+    },
+    onCatalogResolved ({ set, spec }) {
+      if (!set) return
+      this.set = set
+      this.selectedSpecId = spec ? getCatalogSpecId(spec) : ''
     },
   },
 }

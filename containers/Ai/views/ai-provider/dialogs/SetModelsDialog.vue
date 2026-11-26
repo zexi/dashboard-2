@@ -60,9 +60,11 @@ import WindowsMixin from '@/mixins/windows'
 import TestButton from '@/sections/TestButton'
 import AiproxyProviderLabel from '@Ai/components/AiproxyProviderLabel'
 import { fetchProviderModelKeyOptions } from '@Ai/utils/aiModelNames'
+import { aiModelCategoryOptions, isChatCategory } from '@Ai/constants/aiModelCategory'
 
 function defaultMeta (model = {}) {
   return {
+    category: 'llm',
     context_window: model.context_window > 0 ? model.context_window : undefined,
     vision: false,
   }
@@ -109,6 +111,21 @@ export default {
           ellipsis: true,
         },
         {
+          title: this.$t('aice.aiproxy.category'),
+          key: 'category',
+          width: 150,
+          customRender: (text, row) => {
+            return (
+              <a-select
+                value={this.modelMeta[row.model_key]?.category || 'llm'}
+                style="width: 100%"
+                options={this.categoryOptions}
+                onChange={val => this.updateModelMeta(row.model_key, 'category', val)}
+              />
+            )
+          },
+        },
+        {
           title: this.$t('aice.aiproxy.context_window'),
           key: 'context_window',
           width: 160,
@@ -132,6 +149,7 @@ export default {
           customRender: (text, row) => {
             return (
               <a-checkbox
+                disabled={!this.isChatRow(row)}
                 checked={!!this.modelMeta[row.model_key]?.vision}
                 onChange={e => this.updateModelMeta(row.model_key, 'vision', e.target.checked)}
               />
@@ -139,6 +157,9 @@ export default {
           },
         },
       ]
+    },
+    categoryOptions () {
+      return aiModelCategoryOptions(k => this.$t(k))
     },
     rowSelection () {
       return {
@@ -218,11 +239,18 @@ export default {
         models: this.selectedModelKeys.map(key => {
           const meta = this.modelMeta[key] || defaultMeta()
           const item = { model_key: key }
+          if (meta.category) item.category = meta.category
           if (meta.context_window > 0) item.context_window = meta.context_window
-          if (meta.vision) item.input_modalities = ['text', 'image']
+          // Vision delegation is chat-only; never send modalities for
+          // embedding/reranker rows.
+          if (meta.vision && isChatCategory(meta.category)) item.input_modalities = ['text', 'image']
           return item
         }),
       }
+    },
+    isChatRow (row) {
+      const meta = this.modelMeta[row.model_key] || defaultMeta()
+      return isChatCategory(meta.category)
     },
     async probeConnectivity ({ preserveSelection = false } = {}) {
       await this.loadImportedModelKeys()

@@ -17,6 +17,22 @@
         </template>
         <a-label v-if="isEditMode">{{ modelName }}</a-label>
       </a-form-item>
+      <a-form-item
+        v-if="showCatalogSourcePicker"
+        :label="$t('aice.llm_catalog.source')">
+        <a-radio-group
+          v-model="catalogImportSource"
+          button-style="solid"
+          :disabled="catalogSourceLoading"
+          @change="onCatalogImportSourceChange">
+          <a-radio-button
+            v-for="src in catalogAvailableSources"
+            :key="src"
+            :value="src">
+            {{ catalogSourceLabel(src) }}
+          </a-radio-button>
+        </a-radio-group>
+      </a-form-item>
       <a-form-item :label="$t('aice.llm_type')">
         <a-radio-group
           v-if="!isEditMode && (!isCatalogMode || catalogTypeSelectable)"
@@ -29,6 +45,15 @@
           </a-radio-button>
         </a-radio-group>
         <a-label v-else-if="isEditMode || isCatalogMode">{{ llmTypeName }}</a-label>
+      </a-form-item>
+      <a-form-item :label="$t('aice.llm_sku.categories')">
+        <a-select
+          v-decorator="decorators.categories"
+          mode="multiple"
+          allow-clear
+          :placeholder="$t('common.tips.select', [$t('aice.llm_sku.categories')])"
+          :options="categoryOptions" />
+        <div v-if="categoryHintKey" class="text-color-help mt-1">{{ $t(categoryHintKey) }}</div>
       </a-form-item>
       <template v-if="form.fd.llm_type === 'dify'">
         <a-form-item :label="$t('aice.dify_api_image')">
@@ -482,6 +507,12 @@ import {
 } from '@Ai/utils/communityImages'
 import { parseLlmRoute } from '@Ai/utils/llmRouteContext'
 import {
+  aiModelCategoryOptions,
+  isEmbeddingCategory,
+  isRerankCategory,
+  normalizeAiModelCategoryList,
+} from '@Ai/constants/aiModelCategory'
+import {
   backendToLlmType,
   buildCatalogSkuModelParams,
   buildHuggingfaceSkuImportParams,
@@ -491,7 +522,10 @@ import {
   getCatalogMountedModelIds,
   getCatalogSpecId,
   getPreferredModelFromSpec,
+  isCatalogInferenceBackend,
+  resolveImportCategories,
 } from '@Ai/utils/catalogSpec'
+import { getLlmSkuSourceLabel } from '@Ai/views/llm-sku/utils/skuSourceDisplay'
 import {
   buildLocalPathHostPaths,
   describeLocalPathMount,
@@ -637,6 +671,11 @@ export default {
       : null
     const isCatalogImport = !!getCatalogSpecId(this.catalogSpec) && this.catalogSubmitType === 'import'
     const isLocalPathImport = this.importMode === 'local_path'
+    // Category seed: existing SKU value > catalog spec categories > ['llm'].
+    const initialCategories = normalizeAiModelCategoryList(
+      (Array.isArray(data.categories) && data.categories.length ? data.categories : null) ||
+      (this.catalogSpec ? resolveImportCategories(this.catalogSpec, this.catalogSet) : null),
+    )
     const deviceRowsInit = aggregateDevicesToRows(devices)
     const deviceFieldInit = (LLM_TYPE_FORM_CONFIG[initialLlmTypeForSpec] || []).find(f => f.fieldKey === 'device')
     const isLocalPathSkuInit = isLocalPathImport || (this.mode === 'edit' && String(data?.source || '').trim() === 'local_path')
@@ -758,6 +797,17 @@ export default {
             initialValue: catalogNameInit || name,
             rules: [
               { required: true, message: this.$t('common.tips.input', [this.$t('common.name')]) },
+              // Model names carry dots (qwen3.8-vl), which resourceName rejects.
+              { validator: this.$validate('llmResourceName') },
+            ],
+          },
+        ],
+        categories: [
+          'categories',
+          {
+            initialValue: initialCategories,
+            rules: [
+              { required: true, message: this.$t('common.tips.select', [this.$t('aice.llm_sku.categories')]) },
             ],
           },
         ],
@@ -1161,12 +1211,48 @@ export default {
       streamImageParams: { limit: 20, scope: this.$store.getters.scope, $t: 3 },
       catalogImageItemsById: {},
       catalogImportDefaultsApplied: false,
+      catalogAvailableSources: [],
+      catalogImportSource: '',
+      catalogSourceLoading: false,
+      resolvedCatalogSet: null,
+      resolvedCatalogSpec: null,
     }
   },
   computed: {
     ...mapGetters(['userInfo']),
+    categoryOptions () {
+      return aiModelCategoryOptions(k => this.$t(k))
+    },
+    currentCategories () {
+      const val = this.form?.fd?.categories
+      return normalizeAiModelCategoryList(val)
+    },
+    categoryHintKey () {
+      const cats = this.currentCategories
+      const llmType = this.form?.fd?.llm_type
+      if (cats.some(isEmbeddingCategory)) {
+        return llmType === 'vllm'
+          ? 'aice.llm_sku.categories_hint.embedding_vllm'
+          : 'aice.llm_sku.categories_hint.embedding'
+      }
+      if (cats.some(isRerankCategory)) {
+        return 'aice.llm_sku.categories_hint.reranker'
+      }
+      return ''
+    },
     isCatalogImportMode () {
       return this.isCatalogMode && this.catalogSubmitType === 'import' && !this.isApplyType && !this.isDesktopType && !this.isLocalPathImportMode
+    },
+    effectiveCatalogSet () {
+      return this.resolvedCatalogSet || this.catalogSet
+    },
+    effectiveCatalogSpec () {
+      return this.resolvedCatalogSpec || this.catalogSpec
+    },
+    showCatalogSourcePicker () {
+      if (!this.isCatalogImportMode || this.catalogAvailableSources.length < 2) return false
+      const src = this.effectiveCatalogSpec?.source
+      return !src || src === 'huggingface' || src === 'model_scope'
     },
     isLocalPathImportMode () {
       return this.importMode === 'local_path'
@@ -1349,16 +1435,85 @@ export default {
         this.$set(this.form.fd, 'llm_image_id', undefined)
       }
     },
+    catalogSpec () {
+      // Parent drawer switched the selected variant — drop any source override
+      // so we start from the newly chosen spec again.
+      this.resolvedCatalogSet = null
+      this.resolvedCatalogSpec = null
+      if (this.isCatalogImportMode) {
+        this.syncCatalogImportSourceFromSpec()
+      }
+    },
   },
   mounted () {
     if (this.isCatalogMode) {
       this.$store.dispatch('auth/getCapabilities').catch(() => {})
       this.$nextTick(() => this.applyCatalogSpec())
+      if (this.isCatalogImportMode) {
+        this.initCatalogImportSources()
+      }
     } else if (this.isLocalPathImportMode) {
       this.$nextTick(() => this.applyLocalPathImportDefaults())
     }
   },
   methods: {
+    catalogSourceLabel: getLlmSkuSourceLabel,
+    syncCatalogImportSourceFromSpec () {
+      const src = this.effectiveCatalogSpec?.source
+      if (src === 'huggingface' || src === 'model_scope') {
+        this.catalogImportSource = src
+      } else if (this.catalogAvailableSources.includes('huggingface')) {
+        this.catalogImportSource = 'huggingface'
+      } else if (this.catalogAvailableSources.length > 0) {
+        this.catalogImportSource = this.catalogAvailableSources[0]
+      }
+    },
+    async initCatalogImportSources () {
+      try {
+        const manager = new this.$Manager('llm_model_sets', 'v1')
+        const res = await manager.get({ id: 'sources' })
+        const sources = res.data?.sources || []
+        this.catalogAvailableSources = Array.isArray(sources) ? sources.filter(Boolean) : []
+        this.syncCatalogImportSourceFromSpec()
+      } catch (e) {
+        this.catalogAvailableSources = []
+      }
+    },
+    async onCatalogImportSourceChange (e) {
+      const source = e?.target?.value || this.catalogImportSource
+      const setName = this.catalogSet?.name || this.effectiveCatalogSet?.name
+      if (!source || !setName) return
+      const prevSpecId = getCatalogSpecId(this.effectiveCatalogSpec)
+      this.catalogSourceLoading = true
+      try {
+        const manager = new this.$Manager('llm_model_sets', 'v1')
+        const res = await manager.get({ id: setName, params: { source } })
+        const set = res.data
+        if (!set || !set.name) {
+          throw new Error('empty catalog set')
+        }
+        const specs = set.specs || []
+        const matched = specs.find(s => getCatalogSpecId(s) === prevSpecId) ||
+          specs.find(s => isCatalogInferenceBackend(s.backend)) ||
+          specs[0] ||
+          null
+        this.resolvedCatalogSet = set
+        this.resolvedCatalogSpec = matched
+        this.catalogImportSource = source
+        if (matched && this.form?.fc) {
+          const llmType = backendToLlmType(matched.backend) || this.catalogLlmType
+          this.form.fc.setFieldsValue({
+            name: defaultNameFromSpec(matched, set, llmType),
+          })
+        }
+        this.$emit('catalog-resolved', { set, spec: matched, source })
+      } catch (err) {
+        this.$message.error(this.$t('aice.llm_catalog.fetch_failed'))
+        this.syncCatalogImportSourceFromSpec()
+      } finally {
+        this.catalogSourceLoading = false
+      }
+    },
     // Desktop-like types keep their workspace on the data disk and still
     // require one; inference types may be created without it.
     isDataDiskRequired () {
@@ -1572,6 +1727,7 @@ export default {
         enable_cgroup_cpu: !!enable_cgroup_cpu,
         enable_cgroup_memory: !!enable_cgroup_memory,
         volumes,
+        categories: normalizeAiModelCategoryList(values.categories || this.form?.fd?.categories),
       }
       if (hasVolume) {
         data.disk_size = sizeMb
@@ -1685,7 +1841,7 @@ export default {
     mergeCatalogBackendParameters (data) {
       const llmType = this.catalogLlmType
       if (llmType !== 'vllm' && llmType !== 'sglang') return data
-      const catalogParams = normalizeCatalogBackendParameters(this.catalogSpec)
+      const catalogParams = normalizeCatalogBackendParameters(this.effectiveCatalogSpec)
       const formParams = data.backend_parameters || []
       const merged = mergeBackendParameters(catalogParams, formParams)
       if (merged.length > 0 || catalogParams.length > 0 || formParams.length > 0) {
@@ -1699,19 +1855,23 @@ export default {
         values.llm_image_id = await this.resolveImportFormImageId(values.llm_image_id)
       }
       const data = this._assembleSkuData(values)
-      const llmType = this.catalogLlmType
+      const catalogSpec = this.effectiveCatalogSpec
+      const catalogSet = this.effectiveCatalogSet
+      const llmType = catalogSpec ? (backendToLlmType(catalogSpec.backend) || this.catalogLlmType) : this.catalogLlmType
 
-      data.llm_model_spec_id = getCatalogSpecId(this.catalogSpec)
+      data.llm_model_spec_id = getCatalogSpecId(catalogSpec)
       data.llm_type = llmType
 
       // HF / model-sets 导入：目录模型字段 + 表单 backend_parameters 合并
       if (this.catalogSubmitType === 'import') {
-        const hfImport = buildHuggingfaceSkuImportParams(this.catalogSpec, llmType, {
-          catalogSet: this.catalogSet,
+        const hfImport = buildHuggingfaceSkuImportParams(catalogSpec, llmType, {
+          catalogSet,
         })
         const formTypeSpec = data.llm_spec?.[llmType]
         const catTypeSpec = hfImport.llm_spec?.[llmType]
         const payload = { ...data, ...hfImport }
+        // The form lets users adjust categories; do not let the catalog default win.
+        payload.categories = data.categories || hfImport.categories
         if (catTypeSpec || formTypeSpec) {
           payload.llm_spec = {
             [llmType]: {
@@ -1724,7 +1884,7 @@ export default {
       }
 
       const mountedModelIds = await this.resolveCatalogMountedModelIds()
-      const catalogModel = buildCatalogSkuModelParams(this.catalogSpec, llmType, mountedModelIds)
+      const catalogModel = buildCatalogSkuModelParams(catalogSpec, llmType, mountedModelIds)
       if (catalogModel.model_spec) data.model_spec = catalogModel.model_spec
       if (catalogModel.mounted_models && catalogModel.mounted_models.length > 0) {
         data.mounted_models = catalogModel.mounted_models
@@ -1772,7 +1932,7 @@ export default {
         local_path: localPath,
         prefer_hosts: preferHosts,
         host_paths: hostPaths,
-        categories: ['llm'],
+        categories: normalizeAiModelCategoryList(mergedValues.categories || data.categories),
         generate_name: data.name,
         llm_spec: {
           [llmType]: {

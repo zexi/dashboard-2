@@ -33,6 +33,7 @@
                   :message="item.name"
                   :on-manager="onManager"
                   :edit="true"
+                  :form-rules="skuNameRules"
                   :steady-status="steadyStatus">
                   <span class="catalog-card-name-text">{{ item.name }}</span>
                 </list-body-cell-wrap>
@@ -59,6 +60,20 @@
               class="meta-row meta-ellipsis"
               :title="formatSkuSource(item.source)">
               {{ $t('aice.llm_deployment.source') }}：{{ formatSkuSource(item.source) }}
+            </div>
+            <!-- Serving category decides which API the SKU's models answer on. -->
+            <div
+              v-if="showCategories"
+              class="meta-row meta-row--categories"
+              :title="categoryText(item)">
+              <span class="meta-label">{{ $t('aice.llm_sku.categories') }}：</span>
+              <a-tag
+                v-for="(cat, idx) in skuCategories(item)"
+                :key="idx"
+                class="llm-sku-category-tag">
+                {{ categoryLabel(cat) }}
+              </a-tag>
+              <span v-if="!skuCategories(item).length">-</span>
             </div>
             <div
               v-if="isDesktopType && item.app_name"
@@ -136,6 +151,7 @@
 
 <script>
 import { getModelIcon, getModelIconLabel } from '@Ai/utils/index'
+import { aiModelCategoryI18nKey, normalizeAiModelCategory } from '@Ai/constants/aiModelCategory'
 import { getDesktopAppIcon } from '@Ai/utils/communityImages'
 import { formatDevicesDisplay } from '@Ai/utils/deviceFormUtils'
 import { sizestr } from '@/utils/utils'
@@ -198,6 +214,20 @@ export default {
         overflowX: 'hidden',
       }
     },
+    /** Inference SKUs serve models, so their category matters; apps/desktops do not have one. */
+    showCategories () {
+      return !this.isApplyType && !this.isDesktopType
+    },
+    /**
+     * Inline rename rules. Without this the generic Edit form falls back to
+     * `resourceName`, which rejects the dots in names like `qwen3.8-vl`.
+     */
+    skuNameRules () {
+      return [
+        { required: true, message: this.$t('common.tips.input', [this.$t('common.name')]) },
+        { validator: this.$validate('llmResourceName') },
+      ]
+    },
   },
   methods: {
     getModelIcon,
@@ -253,6 +283,22 @@ export default {
     llmTypeLabel (type) {
       const opt = LLM_TYPE_OPTIONS.find(o => o.id === type)
       return opt ? this.$t(opt.name) : type
+    },
+    /** Normalized categories of a SKU; same shape the list/detail column uses. */
+    skuCategories (item) {
+      const raw = Array.isArray(item?.categories) ? item.categories : []
+      const out = []
+      raw.forEach(c => {
+        const v = normalizeAiModelCategory(c)
+        if (v && !out.includes(v)) out.push(v)
+      })
+      return out
+    },
+    categoryLabel (cat) {
+      return this.$t(aiModelCategoryI18nKey(cat))
+    },
+    categoryText (item) {
+      return this.skuCategories(item).map(c => this.categoryLabel(c)).join('、')
     },
     formatMemory (memory) {
       if (memory == null) return '-'
@@ -449,6 +495,19 @@ export default {
 }
 .meta-label {
   flex-shrink: 0;
+}
+.meta-row--categories {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.llm-sku-category-tag {
+  margin: 0;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  height: 20px;
 }
 .meta-ellipsis-text {
   overflow: hidden;

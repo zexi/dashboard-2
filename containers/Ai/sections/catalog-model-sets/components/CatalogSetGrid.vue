@@ -56,6 +56,9 @@
                     <span v-if="(set.specs || []).length > 0">
                       · {{ (set.specs || []).length }} {{ $t('aice.llm_catalog.specs') }}
                     </span>
+                    <span v-if="set.release_date">
+                      · {{ $t('aice.llm_catalog.release_date') }}：{{ set.release_date }}
+                    </span>
                   </div>
                   <div v-if="set.downloads || set.likes" class="catalog-popularity">
                     <span v-if="set.downloads">⬇ {{ formatCount(set.downloads) }}</span>
@@ -108,7 +111,9 @@ export default {
       pageSize: 20,
       filter: {
         search: '',
-        category: null,
+        // undefined, not null: a-select's toArray(null) yields [null], which it
+        // treats as a selected value and hides the placeholder with.
+        category: undefined,
       },
       setsManager: new this.$Manager('llm_model_sets', 'v1'),
       filterDebounce: null,
@@ -278,49 +283,70 @@ export default {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 .catalog-set-grid__body ::v-deep .ant-spin-container {
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-height: 0;
 }
 .catalog-set-grid__scroll {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
 }
 .catalog-set-grid__pager {
   flex-shrink: 0;
-  padding-top: 12px;
-  text-align: left;
+  margin-top: 12px;
+  text-align: right;
 }
-.catalog-popularity {
+.catalog-card-header {
   display: flex;
   gap: 10px;
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
+  margin-bottom: 8px;
 }
-.catalog-card { height: 100%; cursor: pointer; }
-.catalog-card-header { display: flex; align-items: center; margin-bottom: 8px; }
-.catalog-icon { width: 40px; height: 40px; border-radius: 4px; margin-right: 12px; object-fit: contain; background: #fafafa; flex-shrink: 0; }
+.catalog-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 .catalog-icon-name {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f1f5;
-  color: #666;
-  font-weight: 600;
+  background: #f0f2f5;
+  border-radius: 6px;
   font-size: 12px;
+  font-weight: 600;
+  color: #595959;
 }
-.catalog-card-title { flex: 1; min-width: 0; }
-.catalog-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.catalog-subtitle { font-size: 12px; color: #999; }
-.catalog-desc { font-size: 12px; color: #666; height: 36px; overflow: hidden; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.catalog-tags, .catalog-backends { display: flex; flex-wrap: wrap; gap: 4px; }
-.catalog-backends { margin-top: 6px; }
+.catalog-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+.catalog-subtitle {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-top: 2px;
+}
+.catalog-popularity {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-top: 2px;
+}
+.catalog-popularity span + span {
+  margin-left: 8px;
+}
+.catalog-desc {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  min-height: 36px;
+  margin-bottom: 8px;
+}
+.catalog-tags,
+.catalog-backends {
+  margin-top: 4px;
+}
 </style>

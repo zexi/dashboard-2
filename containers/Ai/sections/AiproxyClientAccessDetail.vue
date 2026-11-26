@@ -139,10 +139,13 @@ import {
   buildAnthropicCurlExample,
   buildClaudeCodeEnvExample,
   buildCodexClimcExample,
+  buildEmbeddingsCurlExample,
+  buildRerankCurlExample,
   isPlaceholderApiKey,
   parseShellScriptLines,
 } from '@Ai/utils/aiproxyEndpoint'
 import { copyText } from '@Ai/utils/aiproxyUtils'
+import { normalizeAiModelCategory } from '@Ai/constants/aiModelCategory'
 
 export default {
   name: 'AiproxyClientAccessDetail',
@@ -196,6 +199,11 @@ export default {
       type: String,
       default: '',
     },
+    /** Model category of the currently selected client model (embedding/reranker change the sample). */
+    category: {
+      type: String,
+      default: '',
+    },
   },
   data () {
     return {
@@ -204,8 +212,21 @@ export default {
     }
   },
   computed: {
+    normalizedCategory () {
+      return normalizeAiModelCategory(this.category)
+    },
+    isEmbeddingModel () {
+      return this.normalizedCategory === 'embedding'
+    },
+    isRerankModel () {
+      return this.normalizedCategory === 'reranker'
+    },
+    /** Embedding/reranker models do not serve chat or Anthropic Messages. */
+    isChatProtocolApplicable () {
+      return !this.isEmbeddingModel && !this.isRerankModel
+    },
     showAgentCliTab () {
-      return !this.anthropicBlocked
+      return this.isChatProtocolApplicable && !this.anthropicBlocked
     },
     agentCliTabLabel () {
       if (this.protocol === 'anthropic') {
@@ -241,6 +262,20 @@ export default {
       }
     },
     curlExample () {
+      if (this.isEmbeddingModel) {
+        return buildEmbeddingsCurlExample({
+          endpoint: this.openaiEndpointUrl ? this.openaiEndpointUrl.replace(/\/chat\/completions$/, '/embeddings') : '',
+          model: this.displayModel,
+          virtualKey: this.virtualKey,
+        })
+      }
+      if (this.isRerankModel) {
+        return buildRerankCurlExample({
+          endpoint: this.openaiEndpointUrl ? this.openaiEndpointUrl.replace(/\/chat\/completions$/, '/rerank') : '',
+          model: this.displayModel,
+          virtualKey: this.virtualKey,
+        })
+      }
       if (this.protocol === 'anthropic') {
         return buildAnthropicCurlExample({
           endpoint: this.anthropicMessagesUrl,

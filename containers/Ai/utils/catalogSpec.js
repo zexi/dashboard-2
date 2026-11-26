@@ -39,13 +39,16 @@ export function applyCatalogSpecToDeployForm (deployForm, spec, catalogSet, llmT
 /**
  * 构造 POST llm_deployments 请求体（仅走 model_spec + sku_spec，不查 llm_instant_models）
  */
-export function buildCatalogDeploymentPayload (deployForm, spec, llmType, pciModelTypes = []) {
+export function buildCatalogDeploymentPayload (deployForm, spec, llmType, pciModelTypes = [], catalogSet = null) {
   const skuSpec = {
     llm_image_id: deployForm.llm_image_id,
     llm_type: llmType,
     cpu: deployForm.cpu,
     memory: deployForm.memory,
     volumes: [{ size_mb: deployForm.disk_size, storage_type: 'local' }],
+    // Drives backend serving args (--runner pooling / --is-embedding) and the
+    // readiness probe on the llm side.
+    categories: resolveImportCategories(spec, catalogSet),
   }
   const expanded = expandRowsToDevices(deployForm.deviceRows, pciModelTypes)
   if (expanded.length) {
@@ -183,7 +186,7 @@ export function resolveHuggingfaceRepoId (spec) {
   )
 }
 
-function resolveImportCategories (spec, catalogSet) {
+export function resolveImportCategories (spec, catalogSet) {
   const fromSet = catalogSet?.categories
   if (Array.isArray(fromSet) && fromSet.length > 0) {
     return [...fromSet]

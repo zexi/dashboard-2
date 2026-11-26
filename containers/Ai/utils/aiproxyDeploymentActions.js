@@ -54,7 +54,7 @@ const CREATING_STATUSES = [
   'deleting',
   'import_model_failed',
   'create_sku_failed',
-  'create_fail',
+  // create_fail is recoverable via stop/scale/syncstatus; do not block those.
   'delete_fail',
 ]
 
@@ -71,6 +71,30 @@ export function getScaleMeta (row, vm) {
     return {
       validate: false,
       tooltip: vm.$t('aice.llm_deployment.aiproxy_sync_in_progress'),
+    }
+  }
+  return { validate: true }
+}
+
+export function getStopMeta (row, vm) {
+  const scaleMeta = getScaleMeta(row, vm)
+  if (!scaleMeta.validate) return scaleMeta
+  if (!(Number(row?.replicas) > 0)) {
+    return {
+      validate: false,
+      tooltip: vm.$t('aice.llm_deployment.stop_disabled_zero'),
+    }
+  }
+  return { validate: true }
+}
+
+export function getStartMeta (row, vm) {
+  const scaleMeta = getScaleMeta(row, vm)
+  if (!scaleMeta.validate) return scaleMeta
+  if (Number(row?.replicas) > 0) {
+    return {
+      validate: false,
+      tooltip: vm.$t('aice.llm_deployment.start_disabled_running'),
     }
   }
   return { validate: true }

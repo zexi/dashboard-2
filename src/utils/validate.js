@@ -89,6 +89,20 @@ export const REGEXP = {
     },
     message: i18n.t('validator.resourceName'),
   },
+  // LLM 资源（推理模板 / 推理部署 / 实例）的名称。模型名常带点号
+  // （qwen3.8-vl、Qwen3.8-27B），resourceName 不接受 '.'，所以单独放宽：
+  // 同样的首字符与结尾约束，额外允许 '.'，但排除末尾 '.' 和连续的 '..'。
+  llmResourceName: {
+    func: value => {
+      if (!value) return false
+      if (value.length < 2 || value.length > 128) return false
+      if (value.endsWith('-') || value.endsWith('.')) return false
+      if (value.includes('..')) return false
+      const regexp = /^(?!-|[0-9.])[a-zA-Z0-9.-]{1,126}$/
+      return regexp.test(value)
+    },
+    message: i18n.t('validator.llmResourceName'),
+  },
   secgroupNetworkTag: {
     regexp: /^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$/,
     messageKey: 'validator.secgroupNetworkTag',

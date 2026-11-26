@@ -1630,6 +1630,8 @@ export const PERMISSION = {
   llm_deployments_perform_unregister_aiproxy: ['llm', 'llm_deployments', 'perform', 'unregister-aiproxy'],
   llm_deployments_perform_restart: ['llm', 'llm_deployments', 'perform', 'restart'],
   llm_deployments_perform_syncstatus: ['llm', 'llm_deployments', 'perform', 'syncstatus'],
+  llm_deployments_perform_start: ['llm', 'llm_deployments', 'perform', 'start'],
+  llm_deployments_perform_stop: ['llm', 'llm_deployments', 'perform', 'stop'],
 
   llm_benchmarks_list: ['llm', 'llm_benchmarks', 'list'],
   llm_benchmarks_get: ['llm', 'llm_benchmarks', 'get'],

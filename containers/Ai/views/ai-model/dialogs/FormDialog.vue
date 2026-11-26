@@ -6,42 +6,48 @@
         <a-form-model-item :label="$t('aice.aiproxy.model_key')" prop="model_key">
           <a-input v-model="form.model_key" />
         </a-form-model-item>
+        <a-form-model-item :label="$t('aice.aiproxy.category')" prop="category">
+          <model-category-select v-model="form.category" />
+          <div v-if="categoryHintKey" class="text-color-help mt-1">{{ $t(categoryHintKey) }}</div>
+        </a-form-model-item>
         <a-form-model-item :label="$t('aice.aiproxy.context_window')">
           <a-input-number v-model="form.context_window" :min="0" :step="1024" style="width: 100%" />
         </a-form-model-item>
-        <a-form-model-item :label="$t('aice.aiproxy.capability_vision')">
-          <a-switch v-model="form.native_vision" />
-        </a-form-model-item>
-        <a-divider orientation="left">{{ $t('aice.aiproxy.visual') }}</a-divider>
-        <a-form-model-item :label="$t('aice.aiproxy.visual_enabled')">
-          <a-switch v-model="form.visual_enabled" />
-        </a-form-model-item>
-        <template v-if="form.visual_enabled">
-          <a-form-model-item :label="$t('aice.aiproxy.visual_provider_id')" prop="visual_provider_id">
-            <base-select
-              v-model="form.visual_provider_id"
-              resource="ai_providers"
-              :params="aiproxySelectParams('ai_providers')"
-              filterable
-              version="v2"
-              :select-props="{ placeholder: $t('common.tips.select', [$t('aice.aiproxy.provider')]) }" />
+        <template v-if="isChatModel">
+          <a-form-model-item :label="$t('aice.aiproxy.capability_vision')">
+            <a-switch v-model="form.native_vision" />
           </a-form-model-item>
-          <a-form-model-item :label="$t('aice.aiproxy.visual_model_key')" prop="visual_model_key">
-            <a-select
-              v-model="form.visual_model_key"
-              show-search
-              allow-clear
-              :options="visualModelKeyOptions"
-              :placeholder="$t('common.tips.select', [$t('aice.aiproxy.visual_model_key')])"
-              :disabled="!form.visual_provider_id"
-              :filter-option="filterOption" />
+          <a-divider orientation="left">{{ $t('aice.aiproxy.visual') }}</a-divider>
+          <a-form-model-item :label="$t('aice.aiproxy.visual_enabled')">
+            <a-switch v-model="form.visual_enabled" />
           </a-form-model-item>
-          <a-form-model-item :label="$t('aice.aiproxy.visual_max_rounds')">
-            <a-input-number v-model="form.max_rounds" :min="1" placeholder="4" />
-          </a-form-model-item>
-          <a-form-model-item :label="$t('aice.aiproxy.visual_max_tokens')">
-            <a-input-number v-model="form.max_tokens" :min="1" placeholder="2048" />
-          </a-form-model-item>
+          <template v-if="form.visual_enabled">
+            <a-form-model-item :label="$t('aice.aiproxy.visual_provider_id')" prop="visual_provider_id">
+              <base-select
+                v-model="form.visual_provider_id"
+                resource="ai_providers"
+                :params="aiproxySelectParams('ai_providers')"
+                filterable
+                version="v2"
+                :select-props="{ placeholder: $t('common.tips.select', [$t('aice.aiproxy.provider')]) }" />
+            </a-form-model-item>
+            <a-form-model-item :label="$t('aice.aiproxy.visual_model_key')" prop="visual_model_key">
+              <a-select
+                v-model="form.visual_model_key"
+                show-search
+                allow-clear
+                :options="visualModelKeyOptions"
+                :placeholder="$t('common.tips.select', [$t('aice.aiproxy.visual_model_key')])"
+                :disabled="!form.visual_provider_id"
+                :filter-option="filterOption" />
+            </a-form-model-item>
+            <a-form-model-item :label="$t('aice.aiproxy.visual_max_rounds')">
+              <a-input-number v-model="form.max_rounds" :min="1" placeholder="4" />
+            </a-form-model-item>
+            <a-form-model-item :label="$t('aice.aiproxy.visual_max_tokens')">
+              <a-input-number v-model="form.max_tokens" :min="1" placeholder="2048" />
+            </a-form-model-item>
+          </template>
         </template>
       </a-form-model>
     </div>
@@ -58,11 +64,19 @@ import WindowsMixin from '@/mixins/windows'
 import { validateModelForm } from '@/utils/validate'
 import { getAiproxySelectParams } from '@Ai/constants/aiproxyResources'
 import { fetchProviderModelKeyOptions } from '@Ai/utils/aiModelNames'
+import ModelCategorySelect from '@Ai/sections/ModelCategorySelect'
+import {
+  isChatCategory,
+  isEmbeddingCategory,
+  isRerankCategory,
+  normalizeAiModelCategory,
+} from '@Ai/constants/aiModelCategory'
 
 function visualFromData (data = {}) {
   const visual = data.config?.extensions?.visual || {}
   const modalities = data.input_modalities || data.config?.input_modalities || []
   return {
+    category: normalizeAiModelCategory(data.config?.category) || 'llm',
     native_vision: Array.isArray(modalities) && modalities.includes('image'),
     visual_enabled: !!visual.enabled,
     visual_provider_id: data.visual_provider_id || '',
@@ -74,6 +88,7 @@ function visualFromData (data = {}) {
 
 export default {
   name: 'AiModelFormDialog',
+  components: { ModelCategorySelect },
   mixins: [DialogMixin, WindowsMixin],
   data () {
     const data = this.params.data[0] || {}
@@ -93,6 +108,16 @@ export default {
       },
     }
   },
+  computed: {
+    isChatModel () {
+      return isChatCategory(this.form.category)
+    },
+    categoryHintKey () {
+      if (isEmbeddingCategory(this.form.category)) return 'aice.aiproxy.category_hint.embedding'
+      if (isRerankCategory(this.form.category)) return 'aice.aiproxy.category_hint.reranker'
+      return ''
+    },
+  },
   watch: {
     'form.visual_enabled' (enabled) {
       if (enabled) this.loadVisualModelKeyOptions()
@@ -102,6 +127,19 @@ export default {
       if (providerId !== prev) {
         if (prev) this.form.visual_model_key = ''
         this.loadVisualModelKeyOptions()
+      }
+    },
+    'form.category' (category) {
+      // Embedding/reranker models never serve chat completions, so the vision
+      // extension (which is chat-only tool delegation) does not apply.
+      if (!isChatCategory(category)) {
+        this.form.native_vision = false
+        this.form.visual_enabled = false
+        this.form.visual_provider_id = ''
+        this.form.visual_model_key = ''
+        this.form.max_rounds = undefined
+        this.form.max_tokens = undefined
+        this.visualModelKeyOptions = []
       }
     },
   },
@@ -127,12 +165,18 @@ export default {
       this.visualModelKeyOptions = await fetchProviderModelKeyOptions(providerId, { vm: this })
     },
     buildPayload () {
-      const visual = { enabled: !!this.form.visual_enabled }
-      if (this.form.max_rounds > 0) visual.max_rounds = this.form.max_rounds
-      if (this.form.max_tokens > 0) visual.max_tokens = this.form.max_tokens
-      const config = { extensions: { visual } }
-      if (this.form.native_vision) {
-        config.input_modalities = ['text', 'image']
+      const chatModel = isChatCategory(this.form.category)
+      const category = normalizeAiModelCategory(this.form.category)
+      const config = {}
+      if (category) config.category = category
+      if (chatModel) {
+        const visual = { enabled: !!this.form.visual_enabled }
+        if (this.form.max_rounds > 0) visual.max_rounds = this.form.max_rounds
+        if (this.form.max_tokens > 0) visual.max_tokens = this.form.max_tokens
+        config.extensions = { visual }
+        if (this.form.native_vision) {
+          config.input_modalities = ['text', 'image']
+        }
       }
       const data = {
         ai_provider_id: this.form.ai_provider_id,
@@ -140,7 +184,7 @@ export default {
         config,
         context_window: this.form.context_window > 0 ? this.form.context_window : 0,
       }
-      if (this.form.visual_enabled) {
+      if (chatModel && this.form.visual_enabled) {
         data.visual_provider_id = this.form.visual_provider_id
         data.visual_model_key = this.form.visual_model_key
       } else {

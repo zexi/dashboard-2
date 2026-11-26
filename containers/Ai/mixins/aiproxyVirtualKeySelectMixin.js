@@ -10,6 +10,9 @@ export default {
       selectedVirtualKey: '',
       virtualKeyExtraOpts: [],
       virtualKeyLoading: false,
+      // Tracks the in-flight secret request so consumers can await it instead of
+      // racing it (a fresh selection has an id before its secret arrives).
+      virtualKeyFetchPromise: null,
     }
   },
   computed: {
@@ -38,27 +41,46 @@ export default {
     async fetchVirtualKeySecret (id) {
       if (!id) {
         this.selectedVirtualKey = ''
+        this.virtualKeyFetchPromise = null
         return
       }
       this.virtualKeyLoading = true
-      try {
-        const manager = new Manager('ai_virtual_keys')
-        const { data } = await manager.get({
-          id,
-          params: getAiproxyVirtualKeySelectParams(this, {}, this.data),
-        })
-        this.selectedVirtualKey = data?.virtual_key || ''
-        if (data?.id && data?.name) {
-          this.virtualKeyExtraOpts = [{
-            id: data.id,
-            name: data.name,
-          }]
+      // Clear any secret from a previously selected key so a stale value is
+      // never sent while the new one loads.
+      this.selectedVirtualKey = ''
+      const request = (async () => {
+        try {
+          const manager = new Manager('ai_virtual_keys')
+          const { data } = await manager.get({
+            id,
+            params: getAiproxyVirtualKeySelectParams(this, {}, this.data),
+          })
+          // A slower response for an older selection must not overwrite the
+          // secret of the key the user picked last.
+          if (String(this.selectedVirtualKeyId || '') !== String(id)) return ''
+          this.selectedVirtualKey = data?.virtual_key || ''
+          if (data?.id && data?.name) {
+            this.virtualKeyExtraOpts = [{
+              id: data.id,
+              name: data.name,
+            }]
+          }
+          return this.selectedVirtualKey
+        } catch (e) {
+          if (String(this.selectedVirtualKeyId || '') === String(id)) {
+            this.selectedVirtualKey = ''
+          }
+          return ''
+        } finally {
+          if (this.virtualKeyFetchPromise === request) {
+            this.virtualKeyFetchPromise = null
+            this.virtualKeyLoading = false
+          }
         }
-      } catch (e) {
-        this.selectedVirtualKey = ''
-      } finally {
-        this.virtualKeyLoading = false
-      }
+      })()
+      this.virtualKeyFetchPromise = request
+      // Resolves to the secret so callers can use it without racing the state.
+      return request
     },
   },
 }

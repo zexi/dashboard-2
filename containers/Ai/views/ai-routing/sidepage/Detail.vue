@@ -5,6 +5,7 @@
 <script>
 import AiproxyProxyNodeLinkDetailMixin from '@Ai/mixins/aiproxyProxyNodeLinkDetailMixin'
 import { getAiProxyNodeDetailField } from '@Ai/utils/aiproxyLlmLinkColumns'
+import { getDeploymentCategoriesTableColumn } from '@Ai/views/llm-deployment/utils/columns'
 import { getEnabledTableColumn, getProjectTableColumn, getTimeTableColumn } from '@/utils/common/tableColumn'
 
 export default {
@@ -18,6 +19,7 @@ export default {
     baseInfo () {
       return [
         getEnabledTableColumn(),
+        getDeploymentCategoriesTableColumn(),
         { field: 'model_key', title: this.$t('aice.aiproxy.model_key') },
         { field: 'priority', title: this.$t('aice.aiproxy.priority') },
         getAiProxyNodeDetailField(this),

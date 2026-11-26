@@ -18,6 +18,7 @@ import {
   getDiskTableColumn,
   getLlmTypeTableColumn,
   getLlmModelNameTableColumn,
+  getLlmSkuCategoriesTableColumn,
 } from '../utils/columns'
 
 export default {
@@ -51,6 +52,7 @@ export default {
       ...(isDesktopType ? [getAppNameTableColumn()] : []),
       ...(isInferenceType ? [getDeviceModelTableColumn(), getVramClaimTableColumn()] : []),
       ...(isInferenceType ? [getLlmModelNameTableColumn({ vm: this })] : []),
+      ...(isInferenceType ? [getLlmSkuCategoriesTableColumn()] : []),
       getBandwidthTableColumn(),
       getLlmTypeTableColumn({ isApplyType, isDesktopType }),
       getProjectTableColumn(),

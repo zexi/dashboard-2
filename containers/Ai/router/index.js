@@ -31,6 +31,7 @@ const AiProviderCreate = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/a
 const AiProxyNode = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/ai-proxy-node')
 const AiProxyNodeCreate = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/ai-proxy-node/create')
 const AiProxyUsage = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/aiproxy-usage')
+const AiPlayground = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/ai-playground')
 const LlmBenchmark = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/llm-benchmark')
 const LlmBenchmarkCreate = () => import(/* webpackChunkName: "k8s" */ '@Ai/views/llm-benchmark/create')
 export default {
@@ -360,6 +361,22 @@ export default {
           children: [
             { name: 'AiProviderList', path: '', component: AiProvider },
             { name: 'AiProviderCreate', path: 'create', component: AiProviderCreate },
+          ],
+        },
+        {
+          path: '/ai-playground',
+          meta: {
+            label: i18n.t('aice.aiproxy.playground.title'),
+            hidden: (userInfo, menu) => {
+              if (isScopedPolicyMenuHidden('sub_hidden_menus.ai_playground')) {
+                return true
+              }
+              return featureMenuHiddenCheck(menu)
+            },
+          },
+          component: Layout,
+          children: [
+            { name: 'AiPlayground', path: '', component: AiPlayground },
           ],
         },
         {

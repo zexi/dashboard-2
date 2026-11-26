@@ -93,6 +93,7 @@
 import { validateModelForm } from '@/utils/validate'
 import TestButton from '@/sections/TestButton'
 import AiproxyProviderKeyAutoComplete from '@Ai/components/AiproxyProviderKeyAutoComplete'
+import { aiModelCategoryOptions, isChatCategory } from '@Ai/constants/aiModelCategory'
 import { getApiModeOptions, supportsDualAPIMode } from '@Ai/utils/aiproxyProviderApiMode'
 import { getDefaultPublicBaseURL, shouldShowBuiltinBaseURL } from '@Ai/utils/aiproxyProviderDefaults'
 import {
@@ -204,7 +205,7 @@ export default {
         .filter(item => !q || String(item.model_key).toLowerCase().includes(q))
         .map(item => ({
           model_key: item.model_key,
-          ...(this.modelMeta[item.model_key] || { context_window: item.context_window, vision: false }),
+          ...(this.modelMeta[item.model_key] || { category: 'llm', context_window: item.context_window, vision: false }),
         }))
     },
     modelColumns () {
@@ -214,6 +215,19 @@ export default {
           dataIndex: 'model_key',
           key: 'model_key',
           ellipsis: true,
+        },
+        {
+          title: this.$t('aice.aiproxy.category'),
+          key: 'category',
+          width: 150,
+          customRender: (text, row) => (
+            <a-select
+              value={this.modelMeta[row.model_key]?.category || 'llm'}
+              style="width: 100%"
+              options={this.categoryOptions}
+              onChange={val => this.updateModelMeta(row.model_key, 'category', val)}
+            />
+          ),
         },
         {
           title: this.$t('aice.aiproxy.context_window'),
@@ -236,12 +250,16 @@ export default {
           align: 'center',
           customRender: (text, row) => (
             <a-checkbox
+              disabled={!this.isChatRow(row)}
               checked={!!this.modelMeta[row.model_key]?.vision}
               onChange={e => this.updateModelMeta(row.model_key, 'vision', e.target.checked)}
             />
           ),
         },
       ]
+    },
+    categoryOptions () {
+      return aiModelCategoryOptions(k => this.$t(k))
     },
     rowSelection () {
       return {
@@ -309,7 +327,7 @@ export default {
       this.modelSearch = ''
     },
     updateModelMeta (modelKey, field, value) {
-      const prev = this.modelMeta[modelKey] || { context_window: undefined, vision: false }
+      const prev = this.modelMeta[modelKey] || { category: 'llm', context_window: undefined, vision: false }
       this.$set(this.modelMeta, modelKey, {
         ...prev,
         [field]: value,
@@ -327,7 +345,7 @@ export default {
       const nextMeta = { ...this.modelMeta }
       this.availableModels.forEach(item => {
         if (!nextMeta[item.model_key]) {
-          nextMeta[item.model_key] = { context_window: item.context_window, vision: false }
+          nextMeta[item.model_key] = { category: 'llm', context_window: item.context_window, vision: false }
         } else if (!nextMeta[item.model_key].context_window && item.context_window) {
           nextMeta[item.model_key] = {
             ...nextMeta[item.model_key],
@@ -349,10 +367,15 @@ export default {
       return this.selectedModelKeys.map(key => {
         const meta = this.modelMeta[key] || {}
         const item = { model_key: key }
+        if (meta.category) item.category = meta.category
         if (meta.context_window > 0) item.context_window = meta.context_window
-        if (meta.vision) item.input_modalities = ['text', 'image']
+        if (meta.vision && isChatCategory(meta.category)) item.input_modalities = ['text', 'image']
         return item
       })
+    },
+    isChatRow (row) {
+      const meta = this.modelMeta[row.model_key] || { category: 'llm' }
+      return isChatCategory(meta.category)
     },
     handleCancel () {
       this.$router.push('/ai-provider')

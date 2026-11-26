@@ -5,6 +5,7 @@ import {
   getTimeTableColumn,
 } from '@/utils/common/tableColumn'
 import { getAiProxyNodeLinkColumn } from '@Ai/utils/aiproxyLlmLinkColumns'
+import { getDeploymentCategoriesTableColumn } from '@Ai/views/llm-deployment/utils/columns'
 
 export default {
   created () {
@@ -17,6 +18,7 @@ export default {
         ),
       }),
       getEnabledTableColumn(),
+      getDeploymentCategoriesTableColumn(),
       { field: 'model_key', title: this.$t('aice.aiproxy.model_key'), minWidth: 140 },
       { field: 'priority', title: this.$t('aice.aiproxy.priority'), width: 90 },
       getAiProxyNodeLinkColumn(this),

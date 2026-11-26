@@ -22,6 +22,12 @@
                 :title="formatLlmSkuModel(item)">
                 {{ formatLlmSkuModel(item) }}
               </a-tag>
+              <a-tag
+                v-if="formatLlmSkuCategories(item)"
+                class="llm-sku-option__tag"
+                :title="formatLlmSkuCategories(item)">
+                {{ formatLlmSkuCategories(item) }}
+              </a-tag>
               <a-tag v-if="item.llm_type" class="llm-sku-option__tag">{{ item.llm_type }}</a-tag>
               <a-tag v-if="item.source" class="llm-sku-option__tag">{{ formatLlmSkuSource(item.source) }}</a-tag>
               <a-tag v-if="item.app_name" class="llm-sku-option__tag" :title="item.app_name">{{ item.app_name }}</a-tag>
@@ -51,6 +57,7 @@
 
 <script>
 import { sizestr } from '@/utils/utils'
+import { aiModelCategoryI18nKey, normalizeAiModelCategory } from '@Ai/constants/aiModelCategory'
 import { formatDevicesDisplay } from '@Ai/utils/deviceFormUtils'
 import { getSkuModelDisplayText } from '@Ai/views/llm-sku/utils/modelDisplay'
 import { getLlmSkuSourceLabel } from '@Ai/views/llm-sku/utils/skuSourceDisplay'
@@ -109,8 +116,26 @@ export default {
     formatLlmSkuSource (source) {
       return getLlmSkuSourceLabel(source)
     },
+    /** Categories decide which API the SKU serves; shown as a single tag. */
+    formatLlmSkuCategories (item) {
+      const raw = Array.isArray(item?.categories) ? item.categories : []
+      const labels = []
+      raw.forEach(c => {
+        const v = normalizeAiModelCategory(c)
+        if (!v) return
+        const label = this.$t(aiModelCategoryI18nKey(v))
+        if (!labels.includes(label)) labels.push(label)
+      })
+      return labels.join('/')
+    },
     hasLlmSkuTags (item) {
-      return !!(this.formatLlmSkuModel(item) || item.llm_type || item.source || item.app_name)
+      return !!(
+        this.formatLlmSkuModel(item) ||
+        this.formatLlmSkuCategories(item) ||
+        item.llm_type ||
+        item.source ||
+        item.app_name
+      )
     },
     formatLlmSkuMemory (memory) {
       if (memory == null) return '-'
@@ -159,6 +184,8 @@ export default {
       const identityParts = []
       const model = this.formatLlmSkuModel(item)
       if (model) identityParts.push(`${this.$t('aice.model')}：${model}`)
+      const categories = this.formatLlmSkuCategories(item)
+      if (categories) identityParts.push(`${this.$t('aice.llm_sku.categories')}：${categories}`)
       if (item.llm_type) identityParts.push(`${this.$t('aice.llm_type')}：${item.llm_type}`)
       if (item.source) {
         identityParts.push(`${this.$t('aice.llm_deployment.source')}：${this.formatLlmSkuSource(item.source)}`)

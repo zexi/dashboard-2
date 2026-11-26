@@ -32,18 +32,20 @@ export default {
   name: 'LlmDeploymentRestartDialog',
   mixins: [DialogMixin, WindowsMixin],
   data () {
-    const status = this.params?.data?.[0]?.status
+    const rows = this.params?.data || []
+    const needsForce = rows.some(row => !NORMAL_RESTART_STATUSES.includes(row?.status))
     return {
       loading: false,
-      force: !NORMAL_RESTART_STATUSES.includes(status),
+      force: needsForce,
     }
   },
   methods: {
     async handleConfirm () {
       this.loading = true
       try {
-        await this.params.onManager('performAction', {
-          id: this.params.data[0].id,
+        const ids = this.params.data.map(item => item.id)
+        await this.params.onManager('batchPerformAction', {
+          id: ids,
           steadyStatus: this.force
             ? ['ready', 'partial', 'start_fail', 'create_fail']
             : ['ready', 'partial'],

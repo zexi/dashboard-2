@@ -25,6 +25,7 @@ import {
   getDiskTableColumn,
   getLlmTypeTableColumn,
   getLlmModelNameTableColumn,
+  getLlmSkuCategoriesTableColumn,
   getSourceTableColumn,
   getEnvsTableColumn,
 } from '../utils/columns'
@@ -70,6 +71,7 @@ export default {
           ? []
           : [
             getLlmModelNameTableColumn({ vm: this }),
+            getLlmSkuCategoriesTableColumn(),
             getSourceTableColumn(),
             {
               field: 'backend_parameters',

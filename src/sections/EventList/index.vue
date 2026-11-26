@@ -1,5 +1,5 @@
 <template>
-  <div class="event-list">
+  <div class="event-list" :class="{ 'event-list--in-side-page': inBaseSidePage }">
     <page-list
       ref="pageList"
       :list="list"
@@ -27,6 +27,12 @@ import { formatEventLogNotes } from '@/utils/common/eventLogNotes'
 export default {
   name: 'EventList',
   mixins: [WindowsMixin],
+  inject: {
+    // Set by BaseSidePage; used to restore the native horizontal scrollbar.
+    inBaseSidePage: {
+      default: false,
+    },
+  },
   props: {
     objId: {
       type: String,
@@ -405,5 +411,16 @@ export default {
 .event-list{
   position: relative;
   // padding-bottom: 20px;
+}
+
+// Side-page PageList hides the table body scrollbar (overflow: hidden) and relies
+// on FloatingScroll. That floating bar is often unusable here: short event tables
+// fail its visibility check, and .table-main also sets overflow: hidden. Event log
+// columns are wide, so restore a native horizontal scrollbar. Higher specificity
+// than the global rule in PageList/components/Table.vue.
+.event-list--in-side-page {
+  ::v-deep .page-list-grid > .vxe-table > .vxe-table--main-wrapper > .vxe-table--body-wrapper {
+    overflow-x: auto;
+  }
 }
 </style>

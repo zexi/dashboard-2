@@ -10,7 +10,7 @@
         <a-radio-button value="openai">
           {{ $t('aice.aiproxy.protocol.openai') }}
         </a-radio-button>
-        <a-radio-button value="anthropic">
+        <a-radio-button v-if="chatProtocolAvailable" value="anthropic">
           {{ $t('aice.aiproxy.protocol.anthropic') }}
         </a-radio-button>
       </a-radio-group>
@@ -36,6 +36,13 @@
           class="ml-2 flex-shrink-0"
           @click="handleQuickChatTest">
           {{ $t('aice.llm_deployment.chat_test_quick') }}
+        </a-button>
+        <a-button
+          type="link"
+          size="small"
+          class="flex-shrink-0"
+          @click="openPlayground">
+          {{ $t('aice.aiproxy.playground.open') }}
         </a-button>
       </div>
     </div>
@@ -68,6 +75,7 @@
       :model="displayModel"
       :provider-key="providerKey"
       :client-model-options="clientModelOptions"
+      :category="selectedModelCategory"
       :routing="data"
       :routing-ref="data.name || data.id" />
   </div>
@@ -127,8 +135,23 @@ export default {
         this.data?.model_key ||
         'your-model'
     },
+    /** Category of the currently selected client model, when known. */
+    selectedModelCategory () {
+      const selected = this.clientModelOptions.find(opt => opt.id === this.selectedClientModelId)
+      return selected?.category || ''
+    },
+    /** Embedding/reranker models only speak their own endpoint. */
+    chatProtocolAvailable () {
+      const cat = String(this.selectedModelCategory || '').trim().toLowerCase()
+      return cat !== 'embedding' && cat !== 'reranker'
+    },
   },
   watch: {
+    selectedModelCategory () {
+      if (!this.chatProtocolAvailable) {
+        this.activeProtocol = 'openai'
+      }
+    },
     routingId () {
       this.loadRoutingModels()
       this.loadEndpoint()
@@ -217,6 +240,19 @@ export default {
         virtualKeyId: this.selectedVirtualKeyId,
         virtualKey: this.selectedVirtualKey,
         clientModel: this.displayModel,
+      })
+    },
+    openPlayground () {
+      const cat = String(this.selectedModelCategory || '').trim().toLowerCase()
+      const tab = cat === 'embedding' ? 'embedding' : (cat === 'reranker' ? 'rerank' : 'chat')
+      this.$router.push({
+        name: 'AiPlayground',
+        query: {
+          tab,
+          routing: this.routingId,
+          vk: this.selectedVirtualKeyId || undefined,
+          model: this.displayModel || undefined,
+        },
       })
     },
   },

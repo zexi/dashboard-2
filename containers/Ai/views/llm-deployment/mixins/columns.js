@@ -7,6 +7,7 @@ import {
 import {
   getReplicasTableColumn,
   getBackendTableColumn,
+  getDeploymentCategoriesTableColumn,
   getLLMSkuTableColumn,
   getPlacementStrategyTableColumn,
   getTopologyBadgeTableColumn,
@@ -34,6 +35,7 @@ export default {
       }),
       getLLMSkuTableColumn({ vm: this }),
       getBackendTableColumn(),
+      getDeploymentCategoriesTableColumn(),
       getReplicasTableColumn(),
       getTopologyBadgeTableColumn({ vm: this }),
       getPlacementStrategyTableColumn(),
